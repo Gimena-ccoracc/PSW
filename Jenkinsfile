@@ -19,18 +19,21 @@ pipeline {
         }
 
         stage('SonarCloud Analysis') {
-            steps {
-                script {
-                    def branchName = env.BRANCH_NAME ?: 'workshop'
-                    sh """
-                        mvn sonar:sonar \
-                        -Dsonar.login=${SONAR_TOKEN} \
-                        -Dsonar.projectKey=Gimena-ccoracc_PSW \
-                        -Dsonar.branch.name=${branchName}
-                    """
-                }
+    steps {
+        script {
+            def branchName = env.BRANCH_NAME ?: 'workshop'
+            withEnv(["SONAR_TOKEN=${SONAR_TOKEN}", "BRANCH_NAME=${branchName}"]) {
+                sh '''
+                    mvn sonar:sonar \
+                    -Dsonar.login=$SONAR_TOKEN \
+                    -Dsonar.projectKey=Gimena-ccoracc_PSW \
+                    -Dsonar.branch.name=$BRANCH_NAME
+                '''
             }
         }
+    }
+}
+
 
         stage('Package') {
             steps {
