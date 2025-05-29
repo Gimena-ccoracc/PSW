@@ -2,10 +2,17 @@ pipeline {
     agent any
 
     environment {
-        SONAR_TOKEN = credentials('SONAR_TOKEN') // Asegúrate que esta credencial esté correctamente definida
+        SONAR_TOKEN = credentials('SONAR_TOKEN')
+        JAVA_OPTS = "-Dorg.jenkinsci.plugins.durabletask.BourneShellScript.HEARTBEAT_CHECK_INTERVAL=3600"
     }
 
     stages {
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()
+            }
+        }
+
         stage('Build') {
             steps {
                 sh 'mvn clean install'
@@ -22,14 +29,14 @@ pipeline {
             steps {
                 script {
                     def branchName = env.BRANCH_NAME ?: 'workshop'
-                    // Usamos una llamada segura sin interpolación
-                    withEnv(["SONAR_TOKEN=${SONAR_TOKEN}"]) {
+                    withEnv(["SONAR_BRANCH=${branchName}"]) {
                         sh '''
-                            echo "Iniciando análisis con SonarCloud..."
+                            export JAVA_OPTS="${JAVA_OPTS}"
+                            export SONAR_TOKEN="${SONAR_TOKEN}"
                             mvn sonar:sonar \
                                 -Dsonar.token=$SONAR_TOKEN \
                                 -Dsonar.projectKey=Gimena-ccoracc_PSW \
-                                -Dsonar.branch.name=''' + branchName + ''' || true
+                                -Dsonar.branch.name=$SONAR_BRANCH
                         '''
                     }
                 }
@@ -38,25 +45,23 @@ pipeline {
 
         stage('Package') {
             steps {
-                script {
-                    sh '''
-                        echo "Buscando el JAR generado..."
-                        ls -lh target/*.jar
+                sh '''
+                    echo "Buscando el JAR generado..."
+                    ls -lh target/*.jar
 
-                        echo "Copiando el JAR generado a workspace raíz (opcional)..."
-                        cp target/*.jar ./ || true
-                    '''
-                }
+                    echo "Copiando el JAR generado a workspace raíz (opcional)..."
+                    cp target/*.jar ./ || true
+                '''
             }
         }
     }
 
     post {
         success {
-            echo "✅ Pipeline ejecutado correctamente."
+            echo "Pipeline ejecutado correctamente."
         }
         failure {
-            echo "❌ El pipeline ha fallado."
+            echo "El pipeline ha fallado."
         }
     }
 }
